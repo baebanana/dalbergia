@@ -15,6 +15,10 @@ from django.core.files.storage import FileSystemStorage
 from django.utils import timezone
 
 
+# ==================================================
+# ADMIN CHECK
+# ==================================================
+
 def admin_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         if 'admin_id' not in request.session:
@@ -23,9 +27,9 @@ def admin_required(view_func):
     return _wrapped_view
 
 
-# ======================
-# BASIC PAGES
-# ======================
+# ==================================================
+# BASIC PAGE
+# ==================================================
 
 def index(request):
     return render(request,"dataapp/homepage.html")
@@ -40,27 +44,28 @@ def managedata(request):
     return render(request,"dataapp/manage_data.html")
 
 def managegenus(request):
-    gn =Genus.objects.all()
+    gn = Genus.objects.all()
     return render(request,"dataapp/manage_genus.html",{"genus":gn})
 
 def managespeci(request):
-    sp =Species.objects.all()
+    sp = Species.objects.all()
     return render(request,"dataapp/manage_species.html",{"spi":sp})
 
 def manageinfo(request):
-    kn =KnowledgeInfo.objects.all()
+    kn = KnowledgeInfo.objects.all()
     return render(request,"dataapp/manage_info.html",{"kno":kn})
 
 
-# ======================
+# ==================================================
 # GENUS
-# ======================
+# ==================================================
 
 def addgenus(request):
     if request.method == "POST":
-        gn = request.POST["genus"]
-        rm = request.POST["remark"]
-        Genus.objects.create(genus_name=gn,remarks=rm)
+        Genus.objects.create(
+            genus_name=request.POST["genus"],
+            remarks=request.POST["remark"]
+        )
         messages.success(request,"บันทึกข้อมูลเรียบร้อย")
         return redirect("genusdata")
     return render(request,"dataapp/genus_add.html")
@@ -78,6 +83,7 @@ def genusupdate(request,gn_id):
         gn.save()
         messages.success(request,"อัพเดตข้อมูลเรียบร้อย")
         return redirect("genusdata")
+
     gn = Genus.objects.get(genus_id=gn_id)
     return render(request,"dataapp/genus_update.html",{"gen":gn})
 
@@ -85,18 +91,19 @@ def genussearch(request):
     q = request.GET.get("name","")
     genus = Genus.objects.filter(genus_name__icontains=q)
     return render(request,"dataapp/genus_search.html",{
-        "genus":genus,"name":q
+        "genus":genus,
+        "name":q
     })
 
 
-# ======================
+# ==================================================
 # SPECIES
-# ======================
+# ==================================================
 
 def addspecies(request):
     gn = Genus.objects.all()
     if request.method == "POST":
-        sp = Species.objects.create(
+        Species.objects.create(
             sci_name=request.POST["sciname"],
             thai_name=request.POST["thainame"],
             description=request.POST["attri"],
@@ -104,6 +111,7 @@ def addspecies(request):
         )
         messages.success(request,"บันทึกข้อมูลเรียบร้อย")
         return redirect("specidata")
+
     return render(request,"dataapp/species_add.html",{"genus":gn})
 
 def deletespecies(request,spec_id):
@@ -121,14 +129,15 @@ def updatespecies(request,spec_id):
         spec.save()
         messages.success(request,"อัพเดตข้อมูลเรียบร้อย")
         return redirect("specidata")
-    speci = Species.objects.get(species_id=spec_id)
-    genus=Genus.objects.all()
-    return render(request,"dataapp/species_update.html",{"sp":speci,"gn":genus})
 
+    speci = Species.objects.get(species_id=spec_id)
+    genus = Genus.objects.all()
+    return render(request,"dataapp/species_update.html",{"sp":speci,"gn":genus})
 
 def searchspecies(request):
     query = request.GET.get("message","")
     results = Species.objects.select_related('genus').all()
+
     if query:
         results = results.filter(
             Q(thai_name__icontains=query)|
@@ -136,42 +145,46 @@ def searchspecies(request):
             Q(description__icontains=query)|
             Q(genus__genus_name__icontains=query)
         )
+
     return render(request,"dataapp/species_search.html",{
-        "species":results,"query":query
+        "species":results,
+        "query":query
     })
 
 
-# ======================
-# AI MODEL
-# ======================
+# ==================================================
+# ⭐ AI MODEL (ULTRA STABLE FOR RAILWAY)
+# ==================================================
 
-def get_model():
-    MODEL_PATH = os.path.join(
-        settings.BASE_DIR,
-        'dataapp',
-        'ml_models',
-        'classify_plant_model.keras'
-    )
-    return load_model(MODEL_PATH)
+MODEL_PATH = os.path.join(
+    settings.BASE_DIR,
+    'dataapp',
+    'ml_models',
+    'classify_plant_model.keras'
+)
 
+model = None
 
 def get_model():
     global model
     if model is None:
+        print("Loading AI model...")
         model = load_model(MODEL_PATH)
     return model
 
 
 CLASS_NAMES = ['กระพี้นางนวล','พะยูง','เกร็ดแดง','เครือคางควาย','เครือแมด']
 
+
 def predictplant(request):
-    result=None
-    confidence=None
-    image_url=None
+    result = None
+    confidence = None
+    image_url = None
 
     if request.method=='POST' and request.FILES.get('plant_image'):
         try:
             img_file = request.FILES['plant_image']
+
             fs = FileSystemStorage()
             filename = fs.save(img_file.name,img_file)
             image_url = fs.url(filename)
@@ -183,7 +196,7 @@ def predictplant(request):
             img_array = np.expand_dims(img_array,axis=0)
             img_array = preprocess_input(img_array)
 
-           model = get_model()
+            model = get_model()
             predictions = model.predict(img_array)
 
             result_index = np.argmax(predictions[0])
@@ -193,8 +206,9 @@ def predictplant(request):
                 confidence = f"{np.max(predictions[0])*100:.2f}%"
             else:
                 result = "ไม่ทราบชนิด"
+
         except Exception as e:
-            print(e)
+            print("AI ERROR:",e)
             result = "เกิดข้อผิดพลาดในการประมวลผลรูปภาพ"
 
     return render(request,'dataapp/classify_page.html',{
@@ -204,9 +218,9 @@ def predictplant(request):
     })
 
 
-# ======================
+# ==================================================
 # LOGIN
-# ======================
+# ==================================================
 
 def login(request):
     return render(request,"dataapp/login_form.html")
@@ -215,8 +229,10 @@ def adminlogin(request):
     if request.method=="POST":
         user_in=request.POST.get('username')
         pass_in=request.POST.get('password')
+
         try:
             admin = AdminUser.objects.get(user_name=user_in)
+
             if pass_in == admin.password:
                 request.session['admin_id']=admin.admin_id
                 request.session['admin_name']=admin.full_name
@@ -225,6 +241,8 @@ def adminlogin(request):
                 return redirect('mndata')
             else:
                 messages.error(request,"รหัสผ่านไม่ถูกต้อง")
+
         except AdminUser.DoesNotExist:
             messages.error(request,"ไม่พบชื่อผู้ใช้งาน")
+
     return render(request,'dataapp/login_form.html')
