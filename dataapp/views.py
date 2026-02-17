@@ -145,8 +145,15 @@ def searchspecies(request):
 # AI MODEL
 # ======================
 
-MODEL_PATH = os.path.join(settings.BASE_DIR,'dataapp','ml_models','classify_plant_model.keras')
-model = load_model(MODEL_PATH)
+MODEL_PATH = os.path.join(settings.BASE_DIR, 'dataapp', 'ml_models', 'classify_plant_model.keras')
+model = None
+
+def get_model():
+    global model
+    if model is None:
+        model = load_model(MODEL_PATH)
+    return model
+
 
 CLASS_NAMES = ['กระพี้นางนวล','พะยูง','เกร็ดแดง','เครือคางควาย','เครือแมด']
 
@@ -169,7 +176,8 @@ def predictplant(request):
             img_array = np.expand_dims(img_array,axis=0)
             img_array = preprocess_input(img_array)
 
-            predictions = model.predict(img_array)
+            predictions = get_model().predict(img_array)
+
             result_index = np.argmax(predictions[0])
 
             if result_index < len(CLASS_NAMES):
