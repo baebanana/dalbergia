@@ -145,8 +145,15 @@ def searchspecies(request):
 # AI MODEL
 # ======================
 
-MODEL_PATH = os.path.join(settings.BASE_DIR, 'dataapp', 'ml_models', 'classify_plant_model.keras')
-model = None
+def get_model():
+    MODEL_PATH = os.path.join(
+        settings.BASE_DIR,
+        'dataapp',
+        'ml_models',
+        'classify_plant_model.keras'
+    )
+    return load_model(MODEL_PATH)
+
 
 def get_model():
     global model
@@ -176,7 +183,8 @@ def predictplant(request):
             img_array = np.expand_dims(img_array,axis=0)
             img_array = preprocess_input(img_array)
 
-            predictions = get_model().predict(img_array)
+           model = get_model()
+            predictions = model.predict(img_array)
 
             result_index = np.argmax(predictions[0])
 
