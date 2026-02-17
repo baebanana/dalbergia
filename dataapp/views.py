@@ -99,6 +99,11 @@ def genussearch(request):
 # ==================================================
 # SPECIES
 # ==================================================
+def speciesdata(request):
+    species_list = Species.objects.all()
+    return render(request,"dataapp/species_page.html",{
+        "species_list":species_list
+    })
 
 def addspecies(request):
     gn = Genus.objects.all()
@@ -150,6 +155,7 @@ def searchspecies(request):
         "species":results,
         "query":query
     })
+    
 
 
 # ==================================================
